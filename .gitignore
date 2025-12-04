@@ -1,0 +1,13 @@
+build-process.txt
+__pycache__/
+*.egg-info/
+*.egg
+dist/
+build/
+env/
+
+example/__pycache__
+
+js-file-picker/node_modules
+js-file-picker/package-lock.json
+js-file-picker/dist

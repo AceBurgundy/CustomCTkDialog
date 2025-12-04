@@ -1,6 +1,3 @@
-Here is an **updated and corrected README**, with the **TestPyPI/PyPI upload section fixed** to clarify that **only maintainers you add can upload**, not random users.
-I also tightened up the language and made it cleaner while keeping all your content intact.
-
 # 🎉 **CustomCTkDialog**
 
 ### *Beautiful dialogs, alerts, and native file pickers for CustomTkinter — powered by a lightweight executable.*

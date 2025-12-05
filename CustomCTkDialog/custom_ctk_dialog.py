@@ -8,16 +8,12 @@ import time
 import json
 import os
 
-import pkg_resources
-
 MIN_WINDOW_WIDTH: int = 500
 DEFAULT_WINDOW_HEIGHT: int = 150
 BUTTON_SPACING: int = 10
 
-EXE_PATH = pkg_resources.resource_filename(
-    'CustomCTkDialog', 
-    'folder-picker-1.0.0.exe'
-)
+PACKAGE_DIR: Path = Path(__file__).parent
+EXE_PATH: str = str(PACKAGE_DIR / "folder-picker.exe")
 
 class AlertType(Enum):
     """

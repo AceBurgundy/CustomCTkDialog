@@ -1,0 +1,26 @@
+{
+  "name": "folder-picker",
+  "version": "1.0.0",
+  "main": "folder-picker.js",
+  "scripts": {
+    "start": "electron .",
+    "distribution": "electron-builder"
+  },
+  "devDependencies": {
+    "electron-builder": "^26.0.12",
+    "electron": "^39.2.4"
+  },
+  "build": {
+    "appId": "com.aceburgundy.folderpicker",
+    "productName": "folder-picker",
+    "compression": "maximum",
+    "icon": "switch.ico",
+    "directories": {
+      "output": "distribution"
+    },
+    "win": {
+      "target": "zip", 
+      "icon": "switch.ico"
+    }
+  }
+}

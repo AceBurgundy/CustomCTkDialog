@@ -17,10 +17,10 @@ def main():
 
     # test file picker (if EXE exists locally)
     directories = file_picker(initialdir="D:/")
-    print("Selected folders:", directories)
+    print("Selected files:", directories)
 
     # test directory picker (if EXE exists locally)
-    directories = folder_picker(default_path="D:/")
+    directories = folder_picker(initialdir="D:/")
     print("Selected folders:", directories)
 
 if __name__ == "__main__":

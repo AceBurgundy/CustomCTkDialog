@@ -8,6 +8,7 @@ env/
 
 example/__pycache__
 
-js-file-picker/node_modules
-js-file-picker/package-lock.json
-js-file-picker/dist
+js-folder-picker/node_modules
+js-folder-picker/package-lock.json
+js-folder-picker/distribution
+js-folder-picker/dist

@@ -82,11 +82,9 @@ Download these files now? (Y/n):
 
 Here are the UI components included in the package:
 
-<p align="center">
-  <img src="images/prompt.png" width="260" />
-  <img src="images/confirm.png" width="260" />
-  <img src="images/alert.png" width="260" />
-</p>
+![confirm](images/Confirm.png)
+![alert](images/Alert.png)
+![prompt](images/Prompt.png)
 
 ```python
 from CustomCTkDialog import Dialog, folder_picker, file_picker, AlertType

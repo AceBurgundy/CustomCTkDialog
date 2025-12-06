@@ -41,6 +41,11 @@ CustomCTkDialog/
 ├── example/
 │   └── app.py                    # Example usage
 │
+├── images/                       # UI preview images
+│   ├── prompt.png
+│   ├── confirm.png
+│   └── alert.png
+│
 ├── README.md
 └── pyproject.toml
 ```
@@ -50,30 +55,38 @@ The `js-folder-picker/` folder is **not included** in the published Python packa
 
 ## 🔄 Runtime Logic with `electron_loader`
 
-Previously, the Python package included a **large bundled `.exe`**, which made the package heavy and slowed down installation.
+Previously, the Python package included a **large bundled `.exe`**, which made installation heavy and slow.
 
-Now, `CustomCTkDialog` uses a **dynamic runtime loader**:
+`CustomCTkDialog` now uses a **dynamic runtime loader**:
 
-1. When the package is imported, `electron_loader.ensure_electron()` is executed automatically.
-2. It checks if the **Electron-based folder picker** is already present.
-3. If not, the user is prompted:
+1. On package import, `electron_loader.ensure_electron()` runs automatically.
+2. It checks whether the **Electron folder picker runtime** is already present.
+3. If missing, the user is prompted:
 
 ```
 Some necessary files are required for CustomCTkDialog.folder_picker to work.
 Download these files now? (Y/n):
 ```
 
-4. If the user agrees (default Yes), the **ZIP distribution** of the folder picker is downloaded from the **GitHub releases page**.
-5. The ZIP is extracted into the package folder.
-6. Subsequent imports detect the runtime and **do not re-download**, making the process fast after the first run.
+4. If the user agrees, the ZIP is downloaded from **GitHub Releases**.
+5. The ZIP is extracted into the package directory.
+6. Future imports detect the runtime and do **not** download again.
 
-✅ Advantages:
+### ✔️ Benefits
 
-* Lightweight PyPI package (no 100MB `.exe` inside)
-* Automatic setup for users
-* Updates can be released via GitHub without republishing the Python package
+* Very lightweight PyPI package
+* Automatic runtime management
+* Easy to release updates via GitHub
 
 ## 🧪 Example Usage
+
+Here are the UI components included in the package:
+
+<p align="center">
+  <img src="images/prompt.png" width="260" />
+  <img src="images/confirm.png" width="260" />
+  <img src="images/alert.png" width="260" />
+</p>
 
 ```python
 from CustomCTkDialog import Dialog, folder_picker, file_picker, AlertType
@@ -109,11 +122,9 @@ print("Selected folders:", directories)
 | ----------- | ------------------------------------------------------------- |
 | `prompt()`  | Shows an input dialog, returns string or raises `ValueError`. |
 | `confirm()` | Shows a yes/no dialog, returns boolean.                       |
-| `alert()`   | Shows an alert with `AlertType`.                              |
+| `alert()`   | Shows an alert with the specified `AlertType`.                |
 
 ### `folder_picker()`
-
-Opens a native folder picker. Downloads the Electron runtime automatically if missing.
 
 ```python
 paths = folder_picker()
@@ -121,27 +132,25 @@ paths = folder_picker()
 
 ### `file_picker()`
 
-Wrapper around `tkinter.filedialog.askopenfilenames`.
-
 ```python
 files = file_picker()
 ```
 
 ## 🛠 Development
 
-### 1. Install Python dependencies
+### Install dependencies
 
 ```
 pip install -r requirements.txt
 ```
 
-### 2. Run the example app
+### Run example
 
 ```
 python example/app.py
 ```
 
-### 3. Rebuild the JS folder-picker (developers only)
+### Rebuild JS folder picker
 
 ```
 cd js-folder-picker
@@ -149,12 +158,11 @@ npm install
 npm run build
 ```
 
-* Upload the resulting ZIP to a **GitHub release**.
-* `electron_loader` will download it automatically when the package is imported.
+Upload the resulting ZIP to **GitHub Releases**.
 
 ## 📦 Build & Publish (maintainers only)
 
-### Build the package
+### Build
 
 ```
 python -m build --no-isolation
@@ -168,34 +176,27 @@ python -m twine upload --verbose --repository testpypi dist/*
 
 ## 🔒 TestPyPI & PyPI Upload Permissions
 
-To maintain the integrity and security of the package, only the **project owner** and designated **maintainers** have permission to upload new versions to:
+To protect users and maintain high-quality releases, upload permissions for both **TestPyPI** and **PyPI** are limited to the **project owner** and approved **maintainers**.
 
-* **TestPyPI**
-* **PyPI**
+This ensures:
 
-This ensures that releases are carefully reviewed and that users receive safe, consistent updates.
+* Secure, trusted releases
+* Proper version control
+* A consistent publishing workflow
 
-If you are not currently a maintainer, you will not be able to upload new versions, even if you have:
-
-* Your own API token
-* Your own TestPyPI or PyPI account
-* A local project with the same package name
-
-### How to become a maintainer
-
-If you would like to assist with publishing or maintaining the project:
+### Want to become a maintainer?
 
 1. Open an issue on GitHub expressing your interest.
-2. Contact the project owner to request maintainer access.
-3. Once approved, you will be added under **Settings → Collaborators** and can use your API token to upload new releases.
+2. Contact the project owner.
+3. Once approved, your account will be added under **Settings → Collaborators**, enabling you to publish updates.
 
-We appreciate contributions from the community and want to ensure that all releases remain reliable and secure for everyone.
+Your contributions are valued — thank you for helping improve the project!
 
 ## 🤝 Contributing
 
 * Pull requests welcome!
-* For JS folder-picker improvements: modify `/js-folder-picker/` and rebuild the ZIP.
-* Push new releases to GitHub so `electron_loader` can fetch them automatically.
+* JS improvements must be rebuilt before packaging.
+* Release updates through GitHub to support the runtime downloader.
 
 ## 📝 License
 

@@ -23,6 +23,7 @@
     "win": {
       "target": "zip", 
       "icon": "switch.ico"
-    }
+    },
+    "artifactName": "folder-picker-${version}.zip"
   }
 }

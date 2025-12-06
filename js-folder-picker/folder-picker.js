@@ -60,7 +60,6 @@ function pickFoldersAndOutput() {
     }
 
     const RETURN_FULL_PATHS = arguments.return_full_paths === true;
-
     const properties = ['openDirectory', 'multiSelections'];
     
     const dialogOptions = {
@@ -83,8 +82,8 @@ function pickFoldersAndOutput() {
     }
 
     // Output the resulting array (empty if cancelled) as JSON to stdout    
+    process.stdout.setDefaultEncoding('utf8');
     process.stdout.write(JSON.stringify(finalPaths));
-    app.quit();
 }
 
 app.whenReady().then(pickFoldersAndOutput);

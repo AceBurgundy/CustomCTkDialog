@@ -5,7 +5,7 @@ import io
 import requests
 from pathlib import Path
 
-ELECTRON_ZIP_URL = "https://github.com/AceBurgundy/CustomCTkDialog/releases/download/v1.0.0/folder-picker-1.0.0.zip"
+ELECTRON_ZIP_URL = "https://github.com/AceBurgundy/CustomCTkDialog/releases/download/v1.0.1/folder-picker-1.0.1.zip"
 PACKAGE_DIR = Path(__file__).parent
 EXE_NAME = "folder-picker.exe"
 EXE_PATH = PACKAGE_DIR / EXE_NAME

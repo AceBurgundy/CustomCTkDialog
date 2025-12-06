@@ -20,7 +20,7 @@
 ## 🚀 Installation
 
 ```
-pip install CustomCTkDialog
+pip install customctkdialog
 ```
 
 ## 📦 Project Structure

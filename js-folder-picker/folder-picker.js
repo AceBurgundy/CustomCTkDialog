@@ -83,7 +83,7 @@ function pickFoldersAndOutput() {
 
     // Output the resulting array (empty if cancelled) as JSON to stdout    
     process.stdout.setDefaultEncoding('utf8');
-    process.stdout.write(JSON.stringify(finalPaths));
+    process.stdout.write(Buffer.from(JSON.stringify(finalPaths), 'utf8'));
 }
 
 app.whenReady().then(pickFoldersAndOutput);

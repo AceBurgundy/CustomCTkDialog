@@ -13,7 +13,7 @@ DEFAULT_WINDOW_HEIGHT: int = 150
 BUTTON_SPACING: int = 10
 
 PACKAGE_DIR: Path = Path(__file__).parent
-EXE_PATH: str = str(PACKAGE_DIR / "folder-picker.exe")
+EXE_PATH: str = str(PACKAGE_DIR / "folder-picker-1.0.1.exe")
 
 class AlertType(Enum):
     """

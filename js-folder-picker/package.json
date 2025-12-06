@@ -12,7 +12,7 @@
   },
   "build": {
     "appId": "com.aceburgundy.folderpicker",
-    "productName": "folder-picker",
+    "productName": "folder-picker-1.0.1",
     "compression": "maximum",
     "icon": "switch.ico",
     "directories": {

@@ -2,6 +2,8 @@
   "name": "folder-picker",
   "version": "1.0.1",
   "main": "folder-picker.js",
+  "description": "A simple Electron dialog to pick folders.",
+  "author": "AceBurgundy",
   "scripts": {
     "start": "electron .",
     "distribution": "electron-builder"

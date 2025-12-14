@@ -11,7 +11,7 @@ import os
 MIN_WINDOW_WIDTH: int = 500
 DEFAULT_WINDOW_HEIGHT: int = 150
 BUTTON_SPACING: int = 10
-
+MESSAGE_MAX_LENGTH: int = 500
 PACKAGE_DIR: Path = Path(__file__).parent
 EXE_PATH: str = str(PACKAGE_DIR / "folder-picker-1.0.1.exe")
 
@@ -161,6 +161,24 @@ class Dialog:
 
         return cls._app
 
+    @staticmethod
+    def _force_foreground(app: CTk) -> None:
+        """
+        Force the window to appear above all others, then release topmost.
+        This avoids dialogs spawning behind active windows.
+        """
+        app.deiconify()
+        app.lift()
+
+        try:
+            app.attributes("-topmost", True)
+            app.update_idletasks()
+            app.attributes("-topmost", False)
+        except Exception:
+            pass
+
+        app.focus_force()
+
     @classmethod
     def _clear_app_widgets(cls) -> None:
         """
@@ -175,6 +193,15 @@ class Dialog:
                 child.destroy()
             except Exception:
                 pass
+
+    @staticmethod
+    def _truncate_message(message: str, max_chars: int = MESSAGE_MAX_LENGTH) -> str:
+        """
+        Truncate the message to max_chars and add ellipsis if necessary.
+        """
+        if len(message) <= max_chars:
+            return message
+        return message[:max_chars - 3] + "..."
 
     @staticmethod
     def _center_app(app: CTk, dialog_width: int, dialog_height: int) -> None:
@@ -205,9 +232,7 @@ class Dialog:
             app (CTk): The CTk application window to update.
             poll_interval (float): Time in seconds between UI updates.
         """
-        app.deiconify() # ensure visible / focused
-        app.lift()
-        app.focus_force()
+        Dialog._force_foreground(app)
 
         while flag_container.get(key, None) is None:
             try:
@@ -215,6 +240,21 @@ class Dialog:
                 time.sleep(poll_interval)
             except Exception:
                 break
+
+    @staticmethod
+    def _autosize_height(app: CTk, min_height: int) -> None:
+        """
+        Resize window vertically to fit contents if text expands (e.g. \\n).
+        """
+        app.update_idletasks()
+        required_height = app.winfo_reqheight()
+        final_height = max(min_height, required_height)
+
+        width = app.winfo_width()
+        x = app.winfo_x()
+        y = app.winfo_y()
+
+        app.geometry(f"{width}x{final_height}+{x}+{y}")
 
     @staticmethod
     def _apply_window_icon(app: CTk, window_icon_path: Optional[str]):
@@ -321,8 +361,13 @@ class Dialog:
             else:
                 result_container["value"] = True
 
-        message_label = CTkLabel(app, text=message, font=CTkFont(size=14),
-                                 wraplength=width - 40, justify="left")
+        message = Dialog._truncate_message(message, MESSAGE_MAX_LENGTH)
+        
+        message_label = CTkLabel(
+            app, text=message, font=CTkFont(size=14),
+            wraplength=width - 40, justify="left"
+        )
+
         message_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="nw")
 
         entry: Optional[CTkEntry] = None
@@ -343,8 +388,10 @@ class Dialog:
         if entry:
             entry.focus_set()
 
+        cls._autosize_height(app, height)
         cls._modal_wait_until_set(result_container, "value", app)
         restore_icon()
+
         try:
             app.unbind("<Return>")
             app.unbind("<Escape>")
@@ -437,16 +484,18 @@ class Dialog:
         default_icons = {AlertType.INFO: "ℹ️", AlertType.SUCCESS: "✅", AlertType.WARNING: "⚠️", AlertType.ERROR: "❌"}
         display_icon = icon if icon is not None else default_icons.get(kind, "")
 
-        top_frame = CTkFrame(app, fg_color="transparent")
+        top_frame: CTkFrame = CTkFrame(app, fg_color="transparent")
         top_frame.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="nw")
         top_frame.grid_columnconfigure(0, weight=0)
         top_frame.grid_columnconfigure(1, weight=1)
 
         if display_icon:
             CTkLabel(top_frame, text=display_icon, font=CTkFont(size=24)).grid(row=0, column=0, padx=(0, 10), sticky="nw")
+
+        message = Dialog._truncate_message(message, MESSAGE_MAX_LENGTH)
         CTkLabel(top_frame, text=message, font=CTkFont(size=14), wraplength=width-120, justify="left").grid(row=0, column=1, sticky="nw")
 
-        button_frame = CTkFrame(app, fg_color="transparent")
+        button_frame: CTkFrame = CTkFrame(app, fg_color="transparent")
         button_frame.grid(row=1, column=0, padx=20, pady=(10, 20), sticky="se")
         button_frame.grid_columnconfigure((0,), weight=1)
 
@@ -457,6 +506,7 @@ class Dialog:
         app.bind("<Return>", lambda e=None: _dismiss())
         app.bind("<Escape>", lambda e=None: _dismiss())
 
+        cls._autosize_height(app, height)
         cls._modal_wait_until_set(result_container, "value", app)
 
         try:

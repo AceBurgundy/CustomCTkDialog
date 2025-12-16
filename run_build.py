@@ -10,7 +10,7 @@ PYTHON_EXE = "python11"  # Change if different Python executable
 PACKAGE_DIR = Path(__file__).parent
 DIST_DIR = PACKAGE_DIR / "dist"
 EGG_INFO_DIR = next(PACKAGE_DIR.glob("*.egg-info"), None)
-TWINE_REPO = "testpypi"  # Change to 'pypi' for production
+TWINE_REPO = "pypi"  # Change to 'pypi' for production
 # -----------------------------
 
 def run(cmd, check=True):

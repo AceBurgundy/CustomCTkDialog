@@ -1,5 +1,5 @@
 from customtkinter import CTk, CTkLabel, CTkEntry, CTkButton, CTkFrame, CTkFont, set_appearance_mode # type: ignore
-from typing import Dict, Optional, List, cast
+from typing import Any, Dict, Optional, List, cast
 from tkinter import PhotoImage, Tk, filedialog
 from pathlib import Path
 from enum import Enum
@@ -318,6 +318,8 @@ class Dialog:
         if not message:
             raise ValueError("A message must be provided for input dialogs.")
 
+        CANCEL = object()
+
         app = cls._ensure_app()
         cls._clear_app_widgets()
         restore_icon = cls._apply_window_icon(app, window_icon_path)
@@ -330,16 +332,16 @@ class Dialog:
         app.grid_rowconfigure(2, weight=0)
         app.grid_columnconfigure(0, weight=1)
 
-        result_container: Dict[str, Optional[bool]] = {"value": None}
+        result_container: Dict[Any, Optional[Any]] = {"value": None}
 
         def _do_cancel() -> None:
-            result_container["value"] = None if is_input else False
+            result_container["value"] = CANCEL
             return
 
         def _do_confirm() -> None:
             if is_input and entry:
                 value = entry.get().strip()
-                result_container["value"] = value if value else None
+                result_container["value"] = value if value else ""
             else:
                 result_container["value"] = True
 
@@ -386,14 +388,22 @@ class Dialog:
             app.unbind("<Escape>")
         except Exception:
             pass
+
         cls._clear_app_widgets()
         app.withdraw()
 
-        value = result_container.get("value", None)
+        value = result_container["value"]
+
+        if value is CANCEL:
+            if is_input:
+                raise ValueError("Input required: Dialog was canceled.")
+            return False
+
         if is_input:
-            if value is None:
-                raise ValueError("Input required: Dialog was canceled or blank.")
+            if not value:
+                raise ValueError("Input required: blank input.")
             return value
+
         return bool(value)
 
     @classmethod

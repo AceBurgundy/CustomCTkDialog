@@ -9,7 +9,6 @@ import json
 import os
 
 MIN_WINDOW_WIDTH: int = 500
-DEFAULT_WINDOW_HEIGHT: int = 150
 BUTTON_SPACING: int = 10
 MESSAGE_MAX_LENGTH: int = 500
 PACKAGE_DIR: Path = Path(__file__).parent
@@ -242,21 +241,6 @@ class Dialog:
                 break
 
     @staticmethod
-    def _autosize_height(app: CTk, min_height: int) -> None:
-        """
-        Resize window vertically to fit contents if text expands (e.g. \\n).
-        """
-        app.update_idletasks()
-        required_height = app.winfo_reqheight()
-        final_height = max(min_height, required_height)
-
-        width = app.winfo_width()
-        x = app.winfo_x()
-        y = app.winfo_y()
-
-        app.geometry(f"{width}x{final_height}+{x}+{y}")
-
-    @staticmethod
     def _apply_window_icon(app: CTk, window_icon_path: Optional[str]):
         """
         Apply a temporary window icon for the current dialog.
@@ -302,7 +286,6 @@ class Dialog:
         cancel_text: str = "Cancel",
         window_title: Optional[str] = None,
         width: int = MIN_WINDOW_WIDTH,
-        height: int = 180,
         window_icon_path: Optional[str] = None,
     ) -> Optional[object]:
         """
@@ -342,7 +325,6 @@ class Dialog:
         if window_title:
             app.title(window_title)
 
-        cls._center_app(app, width, height)
         app.grid_rowconfigure(0, weight=0)
         app.grid_rowconfigure(1, weight=1)
         app.grid_rowconfigure(2, weight=0)
@@ -383,12 +365,19 @@ class Dialog:
         CTkButton(button_frame, text=cancel_text, command=_do_cancel).grid(row=0, column=0, padx=(0, BUTTON_SPACING), sticky="e")
         CTkButton(button_frame, text=confirm_text, command=_do_confirm).grid(row=0, column=1, sticky="e")
 
+        app.update_idletasks()  # let Tk compute required size
+
+        requested_width = max(width, app.winfo_reqwidth())
+        requested_height = app.winfo_reqheight()
+
+        cls._center_app(app, requested_width, requested_height)
+        app.minsize(requested_width, requested_height)
+
         app.bind("<Return>", lambda e=None: _do_confirm())
         app.bind("<Escape>", lambda e=None: _do_cancel())
         if entry:
             entry.focus_set()
 
-        cls._autosize_height(app, height)
         cls._modal_wait_until_set(result_container, "value", app)
         restore_icon()
 
@@ -445,8 +434,7 @@ class Dialog:
         return cast(bool, cls._base_input_dialog(
                 message, is_input=False,
                 confirm_text="Yes", cancel_text="No",
-                window_title="Confirm", height=150
-            )
+                window_title="Confirm")
         )
 
     @classmethod
@@ -458,7 +446,6 @@ class Dialog:
         icon: Optional[str] = None,
         kind: AlertType = AlertType.INFO,
         width: int = MIN_WINDOW_WIDTH,
-        height: int = 150,
     ) -> None:
         """
         Base alert dialog: draws message + single dismiss/ok button.
@@ -479,7 +466,6 @@ class Dialog:
         app = cls._ensure_app()
         cls._clear_app_widgets()
         app.title(title or kind.name.title())
-        cls._center_app(app, width, height)
 
         default_icons = {AlertType.INFO: "ℹ️", AlertType.SUCCESS: "✅", AlertType.WARNING: "⚠️", AlertType.ERROR: "❌"}
         display_icon = icon if icon is not None else default_icons.get(kind, "")
@@ -503,10 +489,17 @@ class Dialog:
         def _dismiss(): result_container["value"] = True
         CTkButton(button_frame, text="OK", command=_dismiss).grid(row=0, column=0, sticky="e")
 
+        app.update_idletasks()  # let Tk compute required size
+
+        requested_width = max(width, app.winfo_reqwidth())
+        requested_height = app.winfo_reqheight()
+
+        cls._center_app(app, requested_width, requested_height)
+        app.minsize(requested_width, requested_height)
+
         app.bind("<Return>", lambda e=None: _dismiss())
         app.bind("<Escape>", lambda e=None: _dismiss())
 
-        cls._autosize_height(app, height)
         cls._modal_wait_until_set(result_container, "value", app)
 
         try:

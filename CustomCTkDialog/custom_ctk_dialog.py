@@ -62,7 +62,7 @@ def folder_picker(
 
     try:
         result = subprocess.run(command, capture_output=True, text=True, check=True)  
-
+        
         if result.stderr:
             print("--- Picker STDERR ---\n", result.stderr.strip(), "\n---------------------")            
         
@@ -321,7 +321,6 @@ class Dialog:
         CANCEL = object()
 
         app = cls._ensure_app()
-        cls._clear_app_widgets()
         restore_icon = cls._apply_window_icon(app, window_icon_path)
 
         if window_title:
@@ -389,8 +388,8 @@ class Dialog:
         except Exception:
             pass
 
-        cls._clear_app_widgets()
         app.withdraw()
+        cls._clear_app_widgets()
 
         value = result_container["value"]
 
@@ -474,7 +473,6 @@ class Dialog:
             raise ValueError("Alert message must be provided.")
 
         app = cls._ensure_app()
-        cls._clear_app_widgets()
         app.title(title or kind.name.title())
 
         default_icons = {AlertType.INFO: "ℹ️", AlertType.SUCCESS: "✅", AlertType.WARNING: "⚠️", AlertType.ERROR: "❌"}
@@ -517,8 +515,9 @@ class Dialog:
             app.unbind("<Escape>")
         except Exception:
             pass
-        cls._clear_app_widgets()
+
         app.withdraw()
+        cls._clear_app_widgets()
 
     @classmethod
     def alert(cls, kind: AlertType, title: Optional[str], message: str, icon: Optional[str] = None) -> None:

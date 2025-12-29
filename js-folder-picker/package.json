@@ -1,20 +1,21 @@
 {
   "name": "folder-picker",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "main": "folder-picker.js",
   "description": "A simple Electron dialog to pick folders.",
   "author": "AceBurgundy",
   "scripts": {
     "start": "electron .",
+    "sample": "electron distribution/win-unpacked/folder-picker-1.0.1.exe",
     "distribution": "electron-builder"
   },
   "devDependencies": {
-    "electron-builder": "^26.0.12",
-    "electron": "^39.2.4"
+    "electron-builder": "^26.4.0",
+    "electron": "^39.2.7"
   },
   "build": {
     "appId": "com.aceburgundy.folderpicker",
-    "productName": "folder-picker-1.0.1",
+    "productName": "folder-picker-1.0.2",
     "compression": "maximum",
     "icon": "switch.ico",
     "directories": {

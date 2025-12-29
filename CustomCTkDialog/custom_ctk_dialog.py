@@ -12,7 +12,7 @@ MIN_WINDOW_WIDTH: int = 500
 BUTTON_SPACING: int = 10
 MESSAGE_MAX_LENGTH: int = 500
 PACKAGE_DIR: Path = Path(__file__).parent
-EXE_PATH: str = str(PACKAGE_DIR / "folder-picker-1.0.1.exe")
+EXE_PATH: str = str(PACKAGE_DIR / "folder-picker-1.0.2.exe")
 
 class AlertType(Enum):
     """

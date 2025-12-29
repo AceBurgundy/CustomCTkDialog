@@ -60,9 +60,15 @@ def folder_picker(
 
     command.append(f"--multi-folder={str(multi_folder).lower()}")
 
-    try:
-        result = subprocess.run(command, capture_output=True, text=True, check=True)  
-        
+    try: 
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=True,
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
+
         if result.stderr:
             print("--- Picker STDERR ---\n", result.stderr.strip(), "\n---------------------")            
         

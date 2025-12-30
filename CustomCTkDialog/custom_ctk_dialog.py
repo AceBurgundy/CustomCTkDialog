@@ -1,5 +1,5 @@
 from customtkinter import CTk, CTkLabel, CTkEntry, CTkButton, CTkFrame, CTkFont, set_appearance_mode # type: ignore
-from typing import Any, Dict, Optional, List, cast
+from typing import Any, Dict, Optional, List, cast, Callable
 from tkinter import PhotoImage, Tk, filedialog
 from pathlib import Path
 from enum import Enum
@@ -7,6 +7,7 @@ import subprocess
 import time
 import json
 import os
+import sys
 
 MIN_WINDOW_WIDTH: int = 500
 BUTTON_SPACING: int = 10
@@ -96,7 +97,7 @@ def file_picker(
     initialdir: str = os.getcwd(),
     title: str = "Select Files",
     return_full_paths: bool = True,
-    preferred_icon_path: Optional[str] = None # Added optional argument
+    preferred_icon_path: Optional[str] = None
 ) -> List[str]:
     """
     A wrapper around tkinter's filedialog to pick one or more files.
@@ -113,23 +114,26 @@ def file_picker(
     -------
         List[str] - files chosen by the user, or [] if cancelled.
     """
-    root: Tk = Tk()
+    root_window: Tk = Tk()
 
     if preferred_icon_path:
         try:
-            icon = PhotoImage(file=preferred_icon_path)
-            root.iconphoto(True, icon)
+            icon_image = PhotoImage(file=preferred_icon_path)
+            root_window.iconphoto(True, icon_image)
         except Exception as error:
-            # Handle cases where the file doesn't exist or is an unsupported format
             print(f"Warning: Could not set icon from path '{preferred_icon_path}'. Error: {error}")
 
-    root.withdraw()
+    root_window.withdraw()
 
     file_paths_tuple = filedialog.askopenfilenames(
         initialdir=initialdir,
         title=title,
     )        
-    root.destroy()
+    
+    try:
+        root_window.destroy()
+    except:
+        pass
 
     file_paths = list(file_paths_tuple)
 
@@ -140,64 +144,113 @@ def file_picker(
         
 class Dialog:
 
-    _app: Optional[CTk] = None
-
-    @classmethod
-    def _ensure_app(cls) -> CTk:
+    @staticmethod
+    def _destroy_silently(window: CTk) -> None:
         """
-        Ensure a single CTk app exists and return it.
-        The app is created once and persists for the lifetime of the module.
-        It is initially withdrawn (hidden) until a dialog is shown.
+        Destroys the window while suppressing background Tcl error output.
         """
-        if cls._app is None:
-            cls._app = CTk()
-            cls._app.withdraw()
-            cls._app.resizable(0, 0)
-            cls._app.title("Application")
-            set_appearance_mode("Dark")
+        # Save original stderr
+        original_stderr = sys.stderr
+        
+        try:
+            # Redirect stderr to nowhere
+            sys.stderr = open(os.devnull, 'w')
+            
+            # Attempt to cancel any scheduled "after" events
+            try:
+                for after_id in window.tk.eval('after info').split():
+                    window.after_cancel(after_id)
+            except:
+                pass
+                
+            window.destroy()
+            
+        except:
+            pass
+            
+        finally:
+            # Restore stderr
+            sys.stderr = original_stderr
 
-            def _on_close():
-                try:
-                    cls._clear_app_widgets()
-                finally:
-                    cls._app.withdraw()
-
-            cls._app.protocol("WM_DELETE_WINDOW", _on_close)
-
-        return cls._app
+class Dialog:
 
     @staticmethod
-    def _force_foreground(app: CTk) -> None:
+    def _create_new_window(window_title: str) -> CTk:
         """
-        Force the window to appear above all others, then release topmost.
-        This avoids dialogs spawning behind active windows.
+        Creates a CTk window without the white flash.
         """
-        app.deiconify()
-        app.lift()
-
-        try:
-            app.attributes("-topmost", True)
-            app.update_idletasks()
-            app.attributes("-topmost", False)
-        except Exception:
-            pass
-
-        app.focus_force()
-
-    @classmethod
-    def _clear_app_widgets(cls) -> None:
-        """
-        Remove all children widgets from the persistent app.
-        We destroy them so next dialog draws fresh content into the same app window.
-        """
-        if cls._app is None:
-            return
+        new_window: CTk = CTk()        
+        new_window.withdraw()        
+        set_appearance_mode("Dark")        
+        new_window.configure(fg_color="#242424") 
         
-        for child in cls._app.winfo_children():
+        new_window.resizable(0, 0)
+        new_window.title(window_title)
+        
+        return new_window
+    
+    @staticmethod
+    def _force_foreground(window: CTk) -> None:
+        """
+        Forces the given window to the foreground with a custom fade-in animation
+        to avoid white flashes and the lack of native OS animation.
+        """
+        # 1. Start completely transparent
+        window.attributes("-alpha", 0.0)
+        
+        # 2. Map the window to the screen (it's invisible, so it flashes off-screen/transparently)
+        window.deiconify()
+        
+        # 3. Force rendering while transparent
+        window.update_idletasks()
+        window.update() 
+        
+        # 4. Custom Fade-In Animation
+        # We step from 0.0 to 1.0. 
+        # Adjust 'steps' for smoothness and 'delay' for speed.
+        steps = 10
+        for i in range(1, steps + 1):
+            alpha = i / steps
+            window.attributes("-alpha", alpha)
+            window.update() # Force the OS to redraw the window at this transparency
+            time.sleep(0.01) # 10ms delay per frame (~100ms total animation)
+
+        # 5. Ensure final state is opaque and focused
+        window.attributes("-alpha", 1.0)
+        window.lift()
+        
+        try:
+            window.attributes("-topmost", True)
+            window.update()
+            window.attributes("-topmost", False)
+        except:
+            pass
+        window.focus_force()
+
+    @staticmethod
+    def _safe_finish(window: CTk) -> None:
+        """
+        Cleanly exits and prevents the ghost window issue.
+        """
+        try:
+            # Hide immediately so the user thinks it's closed
+            window.withdraw() 
+            
+            # Silent background cleanup
+            original_stderr = sys.stderr
+            sys.stderr = open(os.devnull, 'w')
+            
             try:
-                child.destroy()
-            except Exception:
-                pass
+                # Cancel pending animations to stop Tcl errors
+                for after_id in window.tk.eval('after info').split():
+                    window.after_cancel(after_id)
+                
+                window.quit()
+                window.destroy()
+            finally:
+                sys.stderr = original_stderr
+        except:
+            pass
 
     @staticmethod
     def _truncate_message(message: str, max_chars: int = MESSAGE_MAX_LENGTH) -> str:
@@ -206,6 +259,7 @@ class Dialog:
         """
         if len(message) <= max_chars:
             return message
+        
         return message[:max_chars - 3] + "..."
 
     @staticmethod
@@ -222,20 +276,13 @@ class Dialog:
         screen_width, screen_height = app.winfo_screenwidth(), app.winfo_screenheight()
         center_x: int = int(screen_width / 2 - dialog_width / 2)
         center_y: int = int(screen_height / 2 - dialog_height / 2)
+        
         app.geometry(f"{dialog_width}x{dialog_height}+{center_x}+{center_y}")
 
     @staticmethod
-    def _modal_wait_until_set(flag_container: dict, key: str, app: CTk, poll_interval: float = 0.01) -> None:
+    def _block_process_until_result(flag_container: dict, key: str, app: CTk, poll_interval: float = 0.01) -> None:
         """
-        Simple modal wait: process tkinter events until flag_container[key] is set (not None).
-        This allows the function to behave synchronously (blocking) while still updating the UI.
-
-        Arguments
-        ---------
-            flag_container (dict): A dictionary to hold the flag value.
-            key (str): The key in the dictionary to monitor.
-            app (CTk): The CTk application window to update.
-            poll_interval (float): Time in seconds between UI updates.
+        Simple modal wait: process tkinter events until flag_container[key] is set.
         """
         Dialog._force_foreground(app)
 
@@ -247,39 +294,15 @@ class Dialog:
                 break
 
     @staticmethod
-    def _apply_window_icon(app: CTk, window_icon_path: Optional[str]):
+    def _apply_window_icon(app: CTk, window_icon_path: Optional[str]) -> None:
         """
-        Apply a temporary window icon for the current dialog.
-        Returns a restore() function that will revert to the previous icon.
-
-        Arguments
-        ---------
-            app (CTk): The root application window.
-            window_icon_path (Optional[str]): Path to .ico file for iconbitmap.
-
-        Returns
-        -------
-            Callable[[], None]: A function that restores the previous icon.
+        Apply a window icon for the current dialog.
         """
-        if not window_icon_path:
-            return lambda: None
-        try:
-            previous_icon = app.winfo_iconbitmap()
-        except Exception:
-            previous_icon = None
-        try:
-            app.iconbitmap(window_icon_path)
-        except Exception:
-            return lambda: None
-        def restore():
+        if window_icon_path and os.path.exists(window_icon_path):
             try:
-                if previous_icon:
-                    app.iconbitmap(previous_icon)
-                else:
-                    app.iconbitmap("")
-            except Exception:
-                pass
-        return restore
+                app.iconbitmap(window_icon_path)
+            except Exception as error:
+                print(f"Failed to set window icon: {error}")
 
     @classmethod
     def _base_input_dialog(
@@ -296,135 +319,92 @@ class Dialog:
     ) -> Optional[object]:
         """
         Shared private helper for input-like dialogs.
-
-        - If is_input == True: treat as 'prompt' -> returns string or raises ValueError if canceled/empty.
-        - If is_input == False: treat as 'confirm' -> returns bool (True for Confirm/Yes, False otherwise).
-
-        This uses the persistent CTk app: draws widgets into it, waits for user action,
-        then clears widgets and hides the app (but does not destroy it).
-
-        Arguments
-        ---------
-            message (str): The message to display in the dialog.
-            is_input (bool): If True, treat as input prompt; if False, treat as confirm dialog.
-            default_text (str): Default text for input dialogs.
-            confirm_text (str): Text for the confirm button.
-            cancel_text (str): Text for the cancel button.
-            window_title (Optional[str]): Title of the dialog window.
-            width (int): Width of the dialog window.
-            height (int): Height of the dialog window.
-            window_icon_path (Optional[str]): Path to .ico (or other acceptable) file passed to root.iconbitmap.
-                If provided, the existing icon will be saved (if possible) and
-                restored after the dialog finishes.
-
-        Returns
-        -------
-            Optional[object]: For input dialogs, returns str; for confirm dialogs, returns bool.
         """
         if not message:
             raise ValueError("A message must be provided for input dialogs.")
 
-        CANCEL = object()
+        CANCEL_SIGNAL = object()
+        
+        dialog_window: CTk = cls._create_new_window(window_title or "Application")
+        
+        cls._apply_window_icon(dialog_window, window_icon_path)
 
-        app = cls._ensure_app()
-        restore_icon = cls._apply_window_icon(app, window_icon_path)
-
-        if window_title:
-            app.title(window_title)
-
-        app.grid_rowconfigure(0, weight=0)
-        app.grid_rowconfigure(1, weight=1)
-        app.grid_rowconfigure(2, weight=0)
-        app.grid_columnconfigure(0, weight=1)
+        dialog_window.grid_rowconfigure(0, weight=0)
+        dialog_window.grid_rowconfigure(1, weight=1)
+        dialog_window.grid_rowconfigure(2, weight=0)
+        dialog_window.grid_columnconfigure(0, weight=1)
 
         result_container: Dict[Any, Optional[Any]] = {"value": None}
 
         def _do_cancel() -> None:
-            result_container["value"] = CANCEL
-            return
+            result_container["value"] = CANCEL_SIGNAL
 
         def _do_confirm() -> None:
-            if is_input and entry:
-                value = entry.get().strip()
+            if is_input and input_entry:
+                value = input_entry.get().strip()
                 result_container["value"] = value if value else ""
             else:
                 result_container["value"] = True
 
-        message = Dialog._truncate_message(message, MESSAGE_MAX_LENGTH)
+        truncated_message: str = cls._truncate_message(message, MESSAGE_MAX_LENGTH)
         
-        message_label = CTkLabel(
-            app, text=message, font=CTkFont(size=14),
-            wraplength=width - 40, justify="left"
+        message_label: CTkLabel = CTkLabel(
+            dialog_window, text=truncated_message, font=CTkFont(size=14),
+            wraplength=width - 40, justify="left", fg_color="#242424"
         )
-
+        
         message_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="nw")
 
-        entry: Optional[CTkEntry] = None
+        input_entry: Optional[CTkEntry] = None
+        
         if is_input:
-            entry = CTkEntry(app, placeholder_text="Enter your required input here...", font=CTkFont(size=14))
-            entry.insert(0, default_text)
-            entry.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
+            input_entry = CTkEntry(dialog_window, placeholder_text="Enter your required input here...", font=CTkFont(size=14), fg_color="#242424")
+            input_entry.insert(0, default_text)
+            input_entry.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
 
-        button_frame = CTkFrame(app, fg_color="transparent")
+        button_frame: CTkFrame = CTkFrame(dialog_window, fg_color="#242424")
         button_frame.grid(row=2, column=0, padx=20, pady=(10, 20), sticky="se")
-        button_frame.grid_columnconfigure((0, 1), weight=0)
 
-        CTkButton(button_frame, text=cancel_text, command=_do_cancel).grid(row=0, column=0, padx=(0, BUTTON_SPACING), sticky="e")
-        CTkButton(button_frame, text=confirm_text, command=_do_confirm).grid(row=0, column=1, sticky="e")
+        CTkButton(button_frame, text=cancel_text, command=_do_cancel).grid(row=0, column=0, padx=(0, BUTTON_SPACING))
+        CTkButton(button_frame, text=confirm_text, command=_do_confirm).grid(row=0, column=1)
 
-        app.update_idletasks()  # let Tk compute required size
+        dialog_window.update_idletasks()
 
-        requested_width = max(width, app.winfo_reqwidth())
-        requested_height = app.winfo_reqheight()
+        requested_width = max(width, dialog_window.winfo_reqwidth())
+        requested_height = dialog_window.winfo_reqheight()
 
-        cls._center_app(app, requested_width, requested_height)
-        app.minsize(requested_width, requested_height)
+        cls._center_app(dialog_window, requested_width, requested_height)
 
-        app.bind("<Return>", lambda e=None: _do_confirm())
-        app.bind("<Escape>", lambda e=None: _do_cancel())
-        if entry:
-            entry.focus_set()
+        dialog_window.protocol("WM_DELETE_WINDOW", _do_cancel)
+        dialog_window.bind("<Return>", lambda e=None: _do_confirm())
+        dialog_window.bind("<Escape>", lambda e=None: _do_cancel())
+        
+        if input_entry:
+            input_entry.focus_set()
 
-        cls._modal_wait_until_set(result_container, "value", app)
-        restore_icon()
-
-        try:
-            app.unbind("<Return>")
-            app.unbind("<Escape>")
-        except Exception:
-            pass
-
-        app.withdraw()
-        cls._clear_app_widgets()
-
-        value = result_container["value"]
-
-        if value is CANCEL:
+        cls._block_process_until_result(result_container, "value", dialog_window)
+        
+        final_value = result_container["value"]
+        
+        # Using the silent destruction logic here
+        cls._safe_finish(dialog_window)
+        
+        if final_value is CANCEL_SIGNAL:
             if is_input:
                 raise ValueError("Input required: Dialog was canceled.")
             return False
 
         if is_input:
-            if not value:
+            if not final_value and final_value != "":
                 raise ValueError("Input required: blank input.")
-            return value
+            return final_value
 
-        return bool(value)
+        return bool(final_value)
 
     @classmethod
     def prompt(cls, message: str, default_text: str = "") -> str:
         """
         Show a prompt dialog to get text input from the user.
-        Returns the entered non-empty string. Raises ValueError if canceled or blank.
-
-        Arguments
-        ---------
-            message (str): The message to display in the prompt dialog.
-            default_text (str): Default text to pre-fill in the input field.
-
-        Returns
-        -------
-            str: The non-empty string entered by the user.
         """
         return cast(str, cls._base_input_dialog(
                 message, is_input=True, default_text=default_text,
@@ -436,15 +416,7 @@ class Dialog:
     @classmethod
     def confirm(cls, message: str) -> bool:
         """
-        Show a confirm (yes/no) dialog. Returns True if user confirmed, False otherwise.
-
-        Arguments
-        ---------
-            message (str): The message to display in the confirm dialog.
-
-        Returns
-        -------
-            bool: True if user clicked Confirm/Yes, False if Cancel/No.
+        Show a confirm (yes/no) dialog.
         """
         return cast(bool, cls._base_input_dialog(
                 message, is_input=False,
@@ -464,79 +436,55 @@ class Dialog:
     ) -> None:
         """
         Base alert dialog: draws message + single dismiss/ok button.
-        Accepts an AlertType to differentiate visuals. Icon can be a simple string (emoji) or None.
-
-        Arguments
-        ---------
-            title (Optional[str]): Title of the alert dialog window.
-            message (str): The alert message to display.
-            icon (Optional[str]): Optional icon (string/emoji) to display alongside the message.
-            kind (AlertType): The type of alert for visual differentiation.
-            width (int): Width of the dialog window.
-            height (int): Height of the dialog window.
         """
         if message is None:
             raise ValueError("Alert message must be provided.")
 
-        app = cls._ensure_app()
-        app.title(title or kind.name.title())
+        dialog_window: CTk = cls._create_new_window(title or kind.name.title())
+        dialog_window.grid_columnconfigure(0, weight=1)
 
         default_icons = {AlertType.INFO: "ℹ️", AlertType.SUCCESS: "✅", AlertType.WARNING: "⚠️", AlertType.ERROR: "❌"}
         display_icon = icon if icon is not None else default_icons.get(kind, "")
 
-        top_frame: CTkFrame = CTkFrame(app, fg_color="transparent")
+        top_frame: CTkFrame = CTkFrame(dialog_window, fg_color="transparent")
         top_frame.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="nw")
-        top_frame.grid_columnconfigure(0, weight=0)
-        top_frame.grid_columnconfigure(1, weight=1)
 
         if display_icon:
             CTkLabel(top_frame, text=display_icon, font=CTkFont(size=24)).grid(row=0, column=0, padx=(0, 10), sticky="nw")
 
-        message = Dialog._truncate_message(message, MESSAGE_MAX_LENGTH)
-        CTkLabel(top_frame, text=message, font=CTkFont(size=14), wraplength=width-120, justify="left").grid(row=0, column=1, sticky="nw")
+        truncated_message = cls._truncate_message(message, MESSAGE_MAX_LENGTH)
+        
+        CTkLabel(top_frame, text=truncated_message, fg_color="#242424", font=CTkFont(size=14), wraplength=width-120, justify="left").grid(row=0, column=1, sticky="nw")
 
-        button_frame: CTkFrame = CTkFrame(app, fg_color="transparent")
+        button_frame: CTkFrame = CTkFrame(dialog_window, fg_color="#242424")
         button_frame.grid(row=1, column=0, padx=20, pady=(10, 20), sticky="se")
-        button_frame.grid_columnconfigure((0,), weight=1)
 
         result_container: Dict[str, Optional[bool]] = {"value": None}
+        
         def _dismiss(): result_container["value"] = True
-        CTkButton(button_frame, text="OK", command=_dismiss).grid(row=0, column=0, sticky="e")
+        
+        CTkButton(button_frame, text="OK", command=_dismiss).grid(row=0, column=0)
 
-        app.update_idletasks()  # let Tk compute required size
+        dialog_window.update_idletasks()
 
-        requested_width = max(width, app.winfo_reqwidth())
-        requested_height = app.winfo_reqheight()
+        cls._center_app(dialog_window, max(width, dialog_window.winfo_reqwidth()), dialog_window.winfo_reqheight())
 
-        cls._center_app(app, requested_width, requested_height)
-        app.minsize(requested_width, requested_height)
+        dialog_window.protocol("WM_DELETE_WINDOW", _dismiss)
+        
+        dialog_window.bind("<Return>", lambda e=None: _dismiss())
+        dialog_window.bind("<Escape>", lambda e=None: _dismiss())
 
-        app.bind("<Return>", lambda e=None: _dismiss())
-        app.bind("<Escape>", lambda e=None: _dismiss())
+        cls._block_process_until_result(result_container, "value", dialog_window)
+        
+        # Using the silent destruction logic here
+        cls._safe_finish(dialog_window)
 
-        cls._modal_wait_until_set(result_container, "value", app)
-
-        try:
-            app.unbind("<Return>")
-            app.unbind("<Escape>")
-        except Exception:
-            pass
-
-        app.withdraw()
-        cls._clear_app_widgets()
-
+        if dialog_window.winfo_exists():
+            dialog_window.destroy()
+            
     @classmethod
     def alert(cls, kind: AlertType, title: Optional[str], message: str, icon: Optional[str] = None) -> None:
         """
-        Public alert helper. Example usage:
-            alert(AlertType.WARNING, "Low Disk Space", "Only 2GB left", icon="⚠️")
-
-        Arguments
-        ---------
-            kind (AlertType): The type of alert for visual differentiation.
-            title (Optional[str]): Title of the alert dialog window.
-            message (str): The alert message to display.
-            icon (Optional[str]): Optional icon (string/emoji) to display alongside the message.
+        Public alert helper.
         """
         cls._base_alert_dialog(title, message, icon=icon, kind=kind)
-    

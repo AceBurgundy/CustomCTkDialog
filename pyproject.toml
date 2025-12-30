@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "customctkdialog"
-version = "0.2.4"
+version = "0.2.6"
 description = "A custom dialog component for CustomTkinter"
 authors = [
     { name = "AceBurgundy", email = "Samadriansabalo99@gmail.com" }

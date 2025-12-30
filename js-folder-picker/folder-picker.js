@@ -75,13 +75,13 @@ function pickFoldersAndOutput() {
 
   if (selectedPaths.length > 0) {
     if (!RETURN_FULL_PATHS) {
-      finalPaths = selectedPaths.map(current_path =>
+      selectedPaths = selectedPaths.map(current_path =>
         path.basename(current_path)
       );
     }
   }
 
-  process.stdout.write(JSON.stringify(finalPaths) + "\n");
+  process.stdout.write(JSON.stringify(selectedPaths) + "\n");
   app.exit(0);
 }
 

@@ -145,36 +145,6 @@ def file_picker(
 class Dialog:
 
     @staticmethod
-    def _destroy_silently(window: CTk) -> None:
-        """
-        Destroys the window while suppressing background Tcl error output.
-        """
-        # Save original stderr
-        original_stderr = sys.stderr
-        
-        try:
-            # Redirect stderr to nowhere
-            sys.stderr = open(os.devnull, 'w')
-            
-            # Attempt to cancel any scheduled "after" events
-            try:
-                for after_id in window.tk.eval('after info').split():
-                    window.after_cancel(after_id)
-            except:
-                pass
-                
-            window.destroy()
-            
-        except:
-            pass
-            
-        finally:
-            # Restore stderr
-            sys.stderr = original_stderr
-
-class Dialog:
-
-    @staticmethod
     def _create_new_window(window_title: str) -> CTk:
         """
         Creates a CTk window without the white flash.
@@ -195,13 +165,10 @@ class Dialog:
         Forces the given window to the foreground with a custom fade-in animation
         to avoid white flashes and the lack of native OS animation.
         """
-        # 1. Start completely transparent
-        window.attributes("-alpha", 0.0)
-        
-        # 2. Map the window to the screen (it's invisible, so it flashes off-screen/transparently)
+        window.attributes("-alpha", 0.0)        
         window.deiconify()
         
-        # 3. Force rendering while transparent
+        # Force rendering while transparent
         window.update_idletasks()
         window.update() 
         
@@ -209,8 +176,8 @@ class Dialog:
         # We step from 0.0 to 1.0. 
         # Adjust 'steps' for smoothness and 'delay' for speed.
         steps = 10
-        for i in range(1, steps + 1):
-            alpha = i / steps
+        for index in range(1, steps + 1):
+            alpha = index / steps
             window.attributes("-alpha", alpha)
             window.update() # Force the OS to redraw the window at this transparency
             time.sleep(0.01) # 10ms delay per frame (~100ms total animation)

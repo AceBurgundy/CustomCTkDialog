@@ -279,7 +279,7 @@ class Dialog:
         is_input: bool = True,
         default_text: str = "",
         confirm_text: str = "Confirm",
-        cancel_text: str = "Cancel",
+        cancel_button_text: str = "Cancel",
         window_title: Optional[str] = None,
         width: int = MIN_WINDOW_WIDTH,
         window_icon_path: Optional[str] = None,
@@ -332,7 +332,7 @@ class Dialog:
         button_frame: CTkFrame = CTkFrame(dialog_window, fg_color="#242424")
         button_frame.grid(row=2, column=0, padx=20, pady=(10, 20), sticky="se")
 
-        CTkButton(button_frame, text=cancel_text, command=_do_cancel).grid(row=0, column=0, padx=(0, BUTTON_SPACING))
+        CTkButton(button_frame, text=cancel_button_text, command=_do_cancel).grid(row=0, column=0, padx=(0, BUTTON_SPACING))
         CTkButton(button_frame, text=confirm_text, command=_do_confirm).grid(row=0, column=1)
 
         dialog_window.update_idletasks()
@@ -375,7 +375,7 @@ class Dialog:
         """
         return cast(str, cls._base_input_dialog(
                 message, is_input=True, default_text=default_text,
-                confirm_text="Confirm", cancel_text="Cancel",
+                confirm_text="Confirm", cancel_button_text="Cancel",
                 window_title="Input Required"
             )
         )
@@ -387,9 +387,178 @@ class Dialog:
         """
         return cast(bool, cls._base_input_dialog(
                 message, is_input=False,
-                confirm_text="Yes", cancel_text="No",
+                confirm_text="Yes", cancel_button_text="No",
                 window_title="Confirm")
         )
+
+    @classmethod
+    def selection(
+        cls,
+        message: str,
+        selections: List[str],
+        *,
+        window_title: str = "Selection Required",
+        window_icon_path: Optional[str] = None,
+        multiple: bool = False,
+        optional: bool = False,
+        width: int = MIN_WINDOW_WIDTH,
+        cancel_button_text: str = "Cancel",
+        confirm_button_text: str = "Confirm",
+        selection_color: str = "#3b8ed0",
+        font_family: str = "Segoe UI",
+        font_size: int = 13
+    ) -> Optional[List[str]]:
+        """
+        Displays a selection dialog where the font family and size are applied 
+        globally to the message, list items, and action buttons.
+        """
+        from customtkinter import CTkScrollableFrame
+
+        if selections is None:
+            raise ValueError("The 'selections' parameter cannot be None.")
+
+        # Establish window context
+        dialog_window: CTk = cls._create_new_window(window_title)
+        cls._apply_window_icon(dialog_window, window_icon_path)
+
+        CANCEL_SIGNAL: object = object()
+        result_container: Dict[str, Any] = {"value": None}
+        selected_indices: set[int] = set()
+        active_focus_index: int = 0
+        
+        # Define Global Fonts
+        # Standard font for items and buttons
+        global_font = CTkFont(family=font_family, size=font_size)
+
+        # Slightly larger version for the message header
+        header_font = CTkFont(family=font_family, size=font_size + 1)
+
+        dialog_window.grid_columnconfigure(0, weight=1)
+        dialog_window.grid_rowconfigure(1, weight=1)
+
+        # Message Rendering
+        truncated_message: str = cls._truncate_message(message)
+
+        message_label: CTkLabel = CTkLabel(
+            dialog_window, 
+            text=truncated_message, 
+            font=header_font, 
+            wraplength=width - 40, 
+            justify="left"
+        )
+
+        message_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="nw")
+
+        # Selection Area
+        list_container_frame: CTkScrollableFrame = CTkScrollableFrame(
+            dialog_window, 
+            height=100, 
+            fg_color="#333333"
+        )
+
+        list_container_frame.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")
+        
+        item_labels_list: List[CTkLabel] = []
+
+        def update_selection_visuals() -> None:
+            """Refreshes the item background colors based on navigation and selection."""
+            for index, label in enumerate(item_labels_list):
+
+                if index in selected_indices:
+                    bg_color = selection_color
+
+                elif index == active_focus_index:
+                    bg_color = "#4a4a4a"
+
+                else:
+                    bg_color = "transparent"
+                
+                label.configure(fg_color=bg_color)
+
+        def handle_toggle_selection(index_to_toggle: int) -> None:
+            """Toggles selection and updates focus."""
+            nonlocal active_focus_index
+            active_focus_index = index_to_toggle
+            
+            if multiple:
+                if index_to_toggle in selected_indices:
+                    selected_indices.remove(index_to_toggle)
+                else:
+                    selected_indices.add(index_to_toggle)
+            else:
+                selected_indices.clear()
+                selected_indices.add(index_to_toggle)
+            
+            update_selection_visuals()
+
+        def handle_move_up(_=None) -> None:
+            """Navigates focus up."""
+            nonlocal active_focus_index
+            active_focus_index = (active_focus_index - 1) % len(selections)
+            update_selection_visuals()
+
+        def handle_move_down(_=None) -> None:
+            """Navigates focus down."""
+            nonlocal active_focus_index
+            active_focus_index = (active_focus_index + 1) % len(selections)
+            update_selection_visuals()
+
+        # Create Selection Items
+        for index, item_text in enumerate(selections):
+            label_item: CTkLabel = CTkLabel(
+                list_container_frame, 
+                text=item_text, 
+                font=global_font,
+                anchor="w",
+                corner_radius=8,
+                padx=10,
+                height=28,
+                cursor="hand2"
+            )
+            label_item.pack(fill="x", pady=1)
+            label_item.bind("<Button-1>", lambda _, idx=index: handle_toggle_selection(idx))
+            item_labels_list.append(label_item)
+
+        def perform_confirmation() -> None:
+            """Returns the selected strings."""
+            if not optional and not selected_indices:
+                raise ValueError("Selection required.")
+            result_container["value"] = [selections[index] for index in selected_indices]
+
+        def perform_cancellation() -> None:
+            """Returns None."""
+            result_container["value"] = CANCEL_SIGNAL
+
+        # Action Buttons
+        button_frame: CTkFrame = CTkFrame(dialog_window, fg_color="transparent")
+        button_frame.grid(row=2, column=0, padx=20, pady=(10, 20), sticky="e")
+        
+        # Apply global_font to buttons
+        cancel_btn = CTkButton(button_frame, text=cancel_button_text, font=global_font, command=perform_cancellation)
+        cancel_btn.grid(row=0, column=0, padx=(0, 10))
+        
+        ok_btn = CTkButton(button_frame, text=confirm_button_text, font=global_font, command=perform_confirmation)
+        ok_btn.grid(row=0, column=1)
+
+        # Bindings
+        dialog_window.bind("<Up>", handle_move_up)
+        dialog_window.bind("<Down>", handle_move_down)
+        dialog_window.bind("<space>", lambda e: handle_toggle_selection(active_focus_index))
+        dialog_window.bind("<Return>", lambda e: perform_confirmation())
+        dialog_window.bind("<Escape>", lambda e: perform_cancellation())
+
+        update_selection_visuals()
+        dialog_window.update_idletasks()
+        
+        cls._center_app(dialog_window, width, dialog_window.winfo_reqheight())
+        cls._block_process_until_result(result_container, "value", dialog_window)
+        
+        final_result = result_container["value"]
+        cls._safe_finish(dialog_window)
+
+        if final_result is CANCEL_SIGNAL:
+            return None
+        return [selections[index] for index in selected_indices]
 
     @classmethod
     def _base_alert_dialog(
